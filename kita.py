@@ -4,13 +4,16 @@ from lxml.html import fromstring
 import coloredlogs
 import logging
 import threading
+import os
 import random
 import datetime
+import json
 
+last_run_file_name = "last_run.json"
+kitas_file_template = "kitas_{}.json"
 kita_elements_xpath = '/html/body/div[2]/div/div/div/div[4]/div[2]/div/form/div/table[2]/tr/td/*'
 base_url = 'https://www.berlin.de/sen/jugend/familie-und-kinder/kindertagesbetreuung/kitas/verzeichnis/'
 free_places_url = base_url + 'FreiePlaetze.aspx'
-last_run_results = {}
 
 class Kita(object):
 
@@ -52,12 +55,50 @@ class Kita(object):
         elements.append("daylyHours: " + str(self.StdTaeglich))
         return ", ".join(elements)
 
+class KitaEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if isinstance(obj, Kita):
+            return obj.__dict__
+
+def from_json(json_object):
+    if 'KitaNr' in json_object:
+        return Kita(**json_object)
+    else:
+        return json_object
+
 def load_last_run():
-    return last_run_results
+    # if file last_run doesnt exist
+    if not os.path.isfile(last_run_file_name):
+        return {}
+
+    last_run_file = open(last_run_file_name, 'r')
+    json_line = json.loads(last_run_file.readline())
+    time = json_line["last_modified"]
+    last_run_file.close()
+    file_name = kitas_file_template.format(time)
+    if not os.path.isfile(file_name):
+        logging.warn("loading of kitas failed - could not find file {}".format(file_name))
+        return {}
+
+    kita_file = open(file_name, 'r')
+    kitas = json.JSONDecoder(object_hook = from_json).decode(kita_file.readline())
+    kita_file.close()
+
+    return {"last_modified":datetime.datetime.fromtimestamp(time), "kita_list":kitas}
+
 
 def save_last_run(kita_list, time):
-    global last_run_results
-    last_run_results.update({"last_modified":time, "kita_list":kita_list})
+    last_run = open(last_run_file_name, 'w')
+    run_dict = {}
+    run_dict["last_modified"] = time.timestamp()
+    print(json.dumps(run_dict), file=last_run)
+    last_run.close()
+
+    kitas = open(kitas_file_template.format(time.timestamp()), 'w')
+    print(json.dumps(kita_list, cls=KitaEncoder), file=kitas)
+    kitas.close()
+
 
 def strip_and_add(kita, element, name):
     member = element.attrib[name].split("_")[1].replace('lbl', '').replace('HLink', '')
