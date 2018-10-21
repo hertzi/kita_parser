@@ -2,13 +2,17 @@
 import requests
 from lxml.html import fromstring
 import coloredlogs
+from logging.handlers import TimedRotatingFileHandler
 import logging
 import threading
 import os
 import random
 import datetime
 import json
+import argparse
 
+
+log_file_name = "kita_parser.log"
 last_run_file_name = "last_run.json"
 kitas_file_template = "kitas_{}.json"
 kita_elements_xpath = '/html/body/div[2]/div/div/div/div[4]/div[2]/div/form/div/table[2]/tr/td/*'
@@ -19,6 +23,7 @@ class Kita(object):
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+        self.Link = self.Link.replace(' ', '')
 
     def add_daily_hours(self, hours):
         hours_list = []
@@ -43,8 +48,8 @@ class Kita(object):
         elements = []
         # elements.append("Nr: " + self.KitaNr)
         elements.append("Name: " + self.KitaName)
-        # elements.append("Adr: " + self.KitaAdresse)
-        # elements.append("Link: " + self.Link)
+        elements.append("Adr: " + self.KitaAdresse)
+        elements.append("Link: " + self.Link)
         elements.append("Reg: " + self.Ortsteil)
         # elements.append("Own: " + self.TraegerName)
         elements.append("Reg: " + self.Ortsteil)
@@ -89,11 +94,11 @@ def load_last_run():
 
 
 def save_last_run(kita_list, time):
-    last_run = open(last_run_file_name, 'w')
+    last_run_file = open(last_run_file_name, 'w')
     run_dict = {}
     run_dict["last_modified"] = time.timestamp()
-    print(json.dumps(run_dict), file=last_run)
-    last_run.close()
+    print(json.dumps(run_dict), file=last_run_file)
+    last_run_file.close()
 
     kitas = open(kitas_file_template.format(time.timestamp()), 'w')
     print(json.dumps(kita_list, cls=KitaEncoder), file=kitas)
@@ -159,14 +164,21 @@ def find_free_places(last_run):
         logging.info("no changes - pages last detected update {}".format(last_run["last_modified"]))
         return
     else:
-        last_filtered = filter_kitas(last_run.get("kita_list"))
-        currend_filtered = filter_kitas(kitas)
-        if last_filtered == currend_filtered:
-            logging.info("page updated - but no kitas of interest")
+        if last_run != {}:
+            new_kitas = dict(kitas.items() - last_run.get("kita_list").items())
         else:
-            for kita in list(currend_filtered.values()):
-                logging.info(kita)
-            logging.info("kitas(with_free): {}({})".format(len(kitas), len(currend_filtered)))
+            new_kitas = kitas
+        if len(new_kitas) == 0:
+            logging.info("page update - but kitas have just been removed")
+        else:
+            new_kitas_filtered = filter_kitas(new_kitas)
+            if len(new_kitas_filtered) == 0:
+                logging.info("page updated - but no kitas of interest")
+            else:
+                kitas_string = ""
+                for kita in new_kitas_filtered.values():
+                    logging.info(kita)
+            logging.info("kitas(with_free): {}({})".format(len(kitas), len(new_kitas_filtered)))
         return kitas
 
 def run_continuesly():
@@ -182,7 +194,12 @@ def main():
     run_continuesly()
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="parsing berlin.de for new kita places - sends notification if something of interest pops up.")
+    #logs
     FORMAT = '%(asctime)s %(levelname)s [%(threadName)s] %(module)s:%(funcName)s\t%(message)s'
     # logging.basicConfig(level=logging.DEBUG, format=FORMAT)
-    coloredlogs.install(level='DEBUG', fmt=FORMAT)
+    coloredlogs.install(level='INFO', fmt=FORMAT)
+    file_handler = TimedRotatingFileHandler(log_file_name, when='d')
+    file_handler.setFormatter(logging.Formatter(FORMAT))
+    logging.getLogger().addHandler(file_handler)
     main()

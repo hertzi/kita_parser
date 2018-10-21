@@ -8,3 +8,6 @@ venv.bak/
 
 # data
 *.json
+
+# logs
+*.log
