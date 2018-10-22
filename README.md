@@ -6,5 +6,5 @@ When running continuously it creates a database and compares the results of each
 
 TODO:
 - [x] persist list of kitas between runs
-- [] add notification channels
-- [] add filter configuration
+- [ ] add notification channels
+- [ ] add filter configuration
