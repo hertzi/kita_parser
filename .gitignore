@@ -11,3 +11,6 @@ venv.bak/
 
 # logs
 *.log
+
+# start scripts
+start_parser.sh

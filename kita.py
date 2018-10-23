@@ -9,6 +9,8 @@ import os
 import random
 import datetime
 import json
+import smtplib
+from email.mime.text import MIMEText
 import argparse
 
 
@@ -18,6 +20,11 @@ kitas_file_template = "kitas_{}.json"
 kita_elements_xpath = '/html/body/div[2]/div/div/div/div[4]/div[2]/div/form/div/table[2]/tr/td/*'
 base_url = 'https://www.berlin.de/sen/jugend/familie-und-kinder/kindertagesbetreuung/kitas/verzeichnis/'
 free_places_url = base_url + 'FreiePlaetze.aspx'
+email_config = None
+
+class EmailConfig(object):
+    def __init__(self):
+        super().__init__()
 
 class Kita(object):
 
@@ -134,6 +141,22 @@ def build_kitas_from_elements(kita_elements):
             kita_objects[obj.KitaNr] = obj
     return kita_objects
 
+def send_email_notification(text):
+    if not email_config.send_notification:
+        logging.debug("email notifications are switched off")
+        return
+    msg = MIMEText(text)
+    msg["From"] = email_config.sender
+    # msg["To"] = "angeliki.hertzfeldt@gmail.com, rene.hertzfeldt@live.de"
+    msg["To"] = ", ".join(email_config.to)
+    msg["Subject"] = "kita gefunden"
+    smtp = smtplib.SMTP(host=email_config.host, port=email_config.port)
+    smtp.starttls()
+    smtp.login(email_config.user, email_config.password)
+    resp = smtp.send_message(msg)
+    smtp.close()
+
+
 # TODO find filter criterias
 def filter_kitas(kitas):
     filtered_kitas = {}
@@ -178,6 +201,8 @@ def find_free_places(last_run):
                 kitas_string = ""
                 for kita in new_kitas_filtered.values():
                     logging.info(kita)
+                    kitas_string += str(kita) + "\n"
+                send_email_notification(kitas_string)
             logging.info("kitas(with_free): {}({})".format(len(kitas), len(new_kitas_filtered)))
         return kitas
 
@@ -190,11 +215,34 @@ def run_continuesly():
     if current_run != None:
         save_last_run(current_run, datetime.datetime.now())
 
+def set_email_config(args):
+    global email_config
+    email_config = EmailConfig()
+    email_config.send_notification = args.send_notification
+    email_config.user = args.email_user
+    email_config.password = args.email_password
+    email_config.host = args.email_host
+    email_config.port = args.email_port
+    email_config.sender = args.email_from
+    email_config.to = args.email_to
+
+
 def main():
     run_continuesly()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="parsing berlin.de for new kita places - sends notification if something of interest pops up.")
+    parser.add_argument("-n", "--send_notification", help="set true to send emai notifications - default False", type=bool, default=False)
+    parser.add_argument("--email_user", "-u", help="gmail address to send notifications from")
+    parser.add_argument("--email_password", "-p", help="gmail password")
+    parser.add_argument("--email_host", "-H", help="email server different from gmail", default="smtp.gmail.com")
+    parser.add_argument("--email_port", "-P", help="email server port - default 587", default=587, type=int)
+    parser.add_argument("--email_from", "-f", help="gmail address to send notifications from")
+    parser.add_argument("--email_to", "-t", help="email address(es) to send notifications to", action='append', default=[])
+
+    args = parser.parse_args()
+    set_email_config(args)
+    
     #logs
     FORMAT = '%(asctime)s %(levelname)s [%(threadName)s] %(module)s:%(funcName)s\t%(message)s'
     # logging.basicConfig(level=logging.DEBUG, format=FORMAT)
