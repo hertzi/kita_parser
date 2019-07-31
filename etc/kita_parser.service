@@ -1,0 +1,11 @@
+[Unit]
+Description=Kita Parser 
+
+[Service]
+User=<yourUser>
+Type=simple
+WorkingDirectory=/home/<yourUser>/projects/kita_parser/
+ExecStart=/home/<yourUser>/projects/kita_parser/venv/bin/python /home/<yourUser>/projects/kita_parser/kita.py
+
+[Install]
+WantedBy=multi-user.target
