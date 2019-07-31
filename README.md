@@ -24,7 +24,15 @@ source ./venv/bin/activate
 ```bash
 python3 -m pip -r requirements.txt
 ```
-5. optional - install service: 
+5. start the program
+```bash
+python kita.py
+```
+6. optional - see all parameters 
+```bash
+python kita.py -h
+```
+7. optional - install service: 
     1. copy kita_parser.service (with sudo) to /etc/serviced/service/
     2. replace \<userName\> with actual user
     3. enable auto start of service and start service
