@@ -12,7 +12,7 @@ TODO:
 ## Installation
 
 1. install virtualenv 
-2. create a virtual environment with
+2. create a virtual environment
 ```bash
 python3 -m virtualenv venv
 ```
@@ -20,7 +20,7 @@ python3 -m virtualenv venv
 ```bash
 source ./venv/bin/activate
 ```
-4. install requiremnts
+4. install requirements
 ```bash
 python3 -m pip -r requirements.txt
 ```
