@@ -3,7 +3,7 @@ chardet==3.0.4
 coloredlogs==10.0
 humanfriendly==4.16.1
 idna==2.7
-lxml==4.2.5
+lxml==4.6.2
 pkg-resources==0.0.0
 requests==2.20.0
 urllib3==1.25.2
